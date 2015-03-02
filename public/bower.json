@@ -1,0 +1,15 @@
+{
+  "name": "public",
+  "version": "0.0.0",
+  "authors": [
+    "quach1122 <quach1122@yahoo.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

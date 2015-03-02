@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html ng-app="myApp">
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        .delete{
+            display: none;
+        }
+        .edit{
+            display: none;
+        }
+        .upload{
+            display: none;
+        }
+        tbody > tr >td:first-child {
+            display: flex;
+        }
+        tr:hover > td .delete{
+            background-color: #ff0a19;
+            display: block;
+        }
+        tr:hover > td .edit{
+            background-color: #3d4eff;
+            display: block;
+        }
+        tr:hover > td .upload{
+            background-color: rgba(96, 86, 98, 0.85);
+            display: block;
+        }
+        tr:hover{
+            background-color: #e3d7c4;
+        }
+        table{
+            border-collapse: collapse;
+        }
+    </style>
+    <link rel="stylesheet" href="/css/base.css"/>
+    <!--<link rel="stylesheet" href="/bootstrap/dist/css/bootstrap.min.css"/>-->
+    <script src="/angular/angular.js"></script>
+    <script src="/angular-resource/angular-resource.js"></script>
+    <script src="../js/index.js"></script>
+    <script>
+
+        angular.module('myApp',['ngResource']).controller('myController',function($scope,Candidate,Files,$q){
+            var my = this;
+            my.candidate = new Candidate();
+            my.candidates = Candidate.query(function(candidates) {
+                console.log('candidates '+candidates);
+            });
+            my.create = function() {
+                Candidate.save(my.candidate, function () {
+                    my.candidates = Candidate.query(function(candidates) {
+                        console.log('candidates '+candidates);
+                    });
+                    my.candidate = new Candidate();
+                });
+                console.log('my.create '+my.candidates);
+            };
+
+            my.delete = function(id){
+                Candidate.delete({id: id},function(deletedData){
+                    console.log('deleted Data '+deletedData._id);
+                    for(var i = 0; i< my.candidates.length; i++){
+                        if(my.candidates[i]._id == deletedData._id){
+                            my.candidates.splice(i,1);
+                        }
+                    }
+                });
+            }
+
+            my.update = function(updateData){
+                console.log(my.currentUserInfo);
+                console.log('udpateData ' + JSON.stringify(my.currentUserInfo));
+                Candidate.update({id:my.currentUserInfo.id,name: my.currentUserInfo.name,email: my.currentUserInfo.email,
+                    college: my.currentUserInfo.college, grad: my.currentUserInfo.grad},function(updateResult){
+                    console.log('update result '+updateResult);
+                    for(var i = 0; i<my.candidates.length; i++){
+                        if(my.candidates[i]._id == my.currentUserInfo.id){
+//                            console.log('update result name '+JSON.parse(updateResult).name);
+                            my.candidates.splice(i,1,updateResult);
+                            my.currentUserInfo = new Candidate();
+                        }
+                    }
+                    console.log('update result '+updateResult);
+                });
+            }
+
+            my.currentUserInfo = {};
+            console.log(my.currentUserInfo);
+            my.currentSelectedUser = function(userId){
+//                console.log('option '+username);
+                for(var i = 0; i<my.candidates.length; i++){
+                    if(my.candidates[i]._id == userId){
+                        my.currentUserInfo.id = my.candidates[i]._id;
+                        my.currentUserInfo.name = my.candidates[i].name;
+                        my.currentUserInfo.email= my.candidates[i].email;
+                        my.currentUserInfo.college = my.candidates[i].college;
+                        my.currentUserInfo.grad = my.candidates[i].grad;
+                        console.log(my.currentUserInfo);
+                    }
+                }
+            }
+            my.uploads = function(){
+                console.log('file '+$scope.fileData);
+                my.selectedFile = Files.uploadFile($scope.fileData).then(function(imageData){
+                    console.log('imageData '+imageData.imageName);
+                });
+            }
+        }).factory('Candidate',function($resource){
+            return $resource('/candidates/:id',{ id: '@_id' }, {
+                update: {
+                    method: 'PUT'
+                }
+            });
+        }).factory('Files',function($http,$q){
+            return {
+                uploadFile : function(file){
+                    var deferred = $q.defer();
+                    var formdata = new FormData();
+                    formdata.append('name','Andy');
+                    formdata.append('file1',file[0]);
+                    $http.post('http://localhost:8000/files',formdata,{headers: {'Content-Type': undefined}}).success(function(res){
+                        console.log('image success'+res.message );
+                        deferred.resolve({
+                            imageName: res.message
+                        });
+                    }).error(function(msg){
+                        deferred.reject(msg);
+                    });
+                    return deferred.promise;
+                }
+            }
+        }).directive('fileInput',function($parse){
+            return {
+                restrict: 'A',
+                link: function(scope,elm,attrs){
+                    elm.bind('change',function(){
+                        scope.fileData =elm[0].files;
+                        console.log(scope.fileData);
+                    });
+                }
+            }
+        });
+    </script>
+</head>
+<body>
+<div ng-controller="myController as my">
+    <section class="view panel">
+        <h1>List of Candidates</h1>
+        <input type="file" file-input="files" multiple/>
+        <table class="table table-striped">
+            <thead>
+            <tr>
+                <th>Operation</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>College</th>
+                <th>Graduation</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr ng-repeat="c in my.candidates">
+                <td>
+                    <button class="delete" ng-click="my.delete(c._id)">X</button>
+                    <button class="edit" ng-click="my.currentSelectedUser(c._id)" >Edit</button>
+                    <button class="upload" ng-click="my.uploads(c._id)">Upload</button>
+                </td>
+                <td>{{c.name}}</td>
+                <td>{{c.email}}</td>
+                <td>{{c.college}}</td>
+                <td>{{c.grad}}</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+    <section class="create panel">
+        <h1>Create Candidate</h1>
+        <input type="text" placeholder="Enter name ... " ng-model="my.candidate.name"/>
+        <input type="email" placeholder="Enter email ... " ng-model="my.candidate.email"/>
+        <input type="text" placeholder="Enter college ... " ng-model="my.candidate.college"/>
+        <input type="text" placeholder="Enter grad ... " ng-model="my.candidate.grad"/>
+        <button ng-click="my.create()">Add Candidate</button>
+    </section>
+    <section class="update panel" id="update-section">
+        <h1>Update Candidate</h1>
+        <input type="text" placeholder="Enter name ... " ng-model="my.currentUserInfo.name"/>
+        <input type="email" placeholder="Enter email ... " ng-model="my.currentUserInfo.email"/>
+        <input type="text" placeholder="Enter college ... " ng-model="my.currentUserInfo.college"/>
+        <input type="text" placeholder="Enter grad ... " ng-model="my.currentUserInfo.grad"/>
+        <button ng-click="my.update(my.currentUserInfo)">Update Candidate</button>
+    </section>
+</div>
+</body>
+</html>
